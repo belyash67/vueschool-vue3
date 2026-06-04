@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notification Component – Vue 3 Exercise</title>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css"
+  />
+</head>
+
+<body>
+  <div id="app" class="ui container" style="margin-top: 2rem;">
+    <h1>Notification Component Demo</h1>
+
+    <!-- ── Demo Controls ─────────────────────────────────────── -->
+    <div class="ui segment">
+      <h3>Trigger a notification</h3>
+
+      <div class="ui form">
+        <div class="field">
+          <label>Message</label>
+          <input type="text" v-model="demoMessage" placeholder="Enter notification text…" />
+        </div>
+
+        <div class="field">
+          <label>Type</label>
+          <select class="ui dropdown" v-model="demoType">
+            <option value="info">Info</option>
+            <option value="success">Success</option>
+            <option value="warning">Warning</option>
+            <option value="error">Error</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <div class="ui checkbox">
+            <input type="checkbox" id="dismissible" v-model="demoDismissible" />
+            <label for="dismissible">Dismissible</label>
+          </div>
+        </div>
+
+        <button class="ui primary button" @click="showNotification">Show Notification</button>
+      </div>
+    </div>
+
+    <!-- ── Active Notifications ───────────────────────────────── -->
+    <notification-message
+      v-for="notification in notifications"
+      :key="notification.id"
+      :type="notification.type"
+      :dismissible="notification.dismissible"
+      @dismiss="dismissNotification(notification.id)"
+    >
+      {{ notification.message }}
+    </notification-message>
+
+    <!-- ── Preset examples ───────────────────────────────────── -->
+    <div class="ui segment">
+      <h3>Preset examples</h3>
+      <notification-message type="info">
+        This is an <strong>informational</strong> notification. It lets you know about something useful.
+      </notification-message>
+
+      <notification-message type="success">
+        Your profile was saved <strong>successfully</strong>!
+      </notification-message>
+
+      <notification-message type="warning">
+        <strong>Warning:</strong> Your session will expire in 5 minutes.
+      </notification-message>
+
+      <notification-message type="error">
+        <strong>Error:</strong> Something went wrong. Please try again.
+      </notification-message>
+    </div>
+  </div>
+
+  <!-- Vue 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <script>
+    const { createApp } = Vue;
+
+    // ─── Notification Message Component ───────────────────────────────────────
+    const NotificationMessage = {
+      name: 'NotificationMessage',
+
+      // Slot content = the message body passed by the parent
+      // Props: type (info | success | warning | error), dismissible
+      props: {
+        type: {
+          type: String,
+          default: 'info',
+          validator(value) {
+            return ['info', 'success', 'warning', 'error'].includes(value);
+          },
+        },
+        dismissible: {
+          type: Boolean,
+          default: true,
+        },
+      },
+
+      emits: ['dismiss'],
+
+      data() {
+        return {
+          visible: true,
+        };
+      },
+
+      computed: {
+        // Map our type names to Semantic UI CSS class names
+        cssClasses() {
+          const map = {
+            info: 'info',
+            success: 'positive',
+            warning: 'warning',
+            error: 'negative',
+          };
+          return `ui message ${map[this.type] || 'info'}`;
+        },
+
+        // Icon name for each type
+        iconName() {
+          const icons = {
+            info: 'info circle',
+            success: 'check circle',
+            warning: 'exclamation triangle',
+            error: 'times circle',
+          };
+          return icons[this.type] || 'info circle';
+        },
+      },
+
+      methods: {
+        close() {
+          this.visible = false;
+          this.$emit('dismiss');
+        },
+      },
+
+      template: `
+        <transition name="fade">
+          <div v-if="visible" :class="cssClasses" style="margin-bottom: 1rem;">
+            <!-- Dismiss button (shown only when dismissible) -->
+            <i
+              v-if="dismissible"
+              class="close icon"
+              style="cursor:pointer;"
+              @click="close"
+              title="Dismiss"
+            ></i>
+
+            <div class="content">
+              <div class="header" style="display:flex; align-items:center; gap:.4rem;">
+                <i :class="iconName + ' icon'"></i>
+                <span style="text-transform:capitalize;">{{ type }}</span>
+              </div>
+              <p>
+                <!-- Default slot: the message text/HTML -->
+                <slot>No message provided.</slot>
+              </p>
+            </div>
+          </div>
+        </transition>
+      `,
+    };
+
+    // ─── Root Application ──────────────────────────────────────────────────────
+    createApp({
+      components: { NotificationMessage },
+
+      data() {
+        return {
+          notifications: [],
+          nextId: 1,
+
+          // Demo controls
+          demoMessage: '',
+          demoType: 'info',
+          demoDismissible: true,
+        };
+      },
+
+      methods: {
+        showNotification() {
+          if (!this.demoMessage.trim()) return;
+
+          this.notifications.push({
+            id: this.nextId++,
+            message: this.demoMessage.trim(),
+            type: this.demoType,
+            dismissible: this.demoDismissible,
+          });
+
+          this.demoMessage = '';
+        },
+
+        dismissNotification(id) {
+          this.notifications = this.notifications.filter((n) => n.id !== id);
+        },
+      },
+    }).mount('#app');
+  </script>
+
+  <style>
+    /* Simple fade transition for dismiss animation */
+    .fade-enter-active,
+    .fade-leave-active {
+      transition: opacity 0.3s ease;
+    }
+    .fade-enter-from,
+    .fade-leave-to {
+      opacity: 0;
+    }
+  </style>
+</body>
+
+</html>

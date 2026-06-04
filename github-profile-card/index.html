@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitHub Profile Card – Vue 3 Exercise</title>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css"
+  />
+</head>
+
+<body>
+  <div id="app" class="ui container" style="margin-top: 2rem;">
+    <h1>GitHub Profiles</h1>
+
+    <!-- Search form -->
+    <div class="ui action input" style="margin-bottom: 1.5rem;">
+      <input
+        type="text"
+        v-model="searchUsername"
+        placeholder="Enter GitHub username…"
+        @keyup.enter="addUser"
+      />
+      <button class="ui button" @click="addUser">Add Profile</button>
+    </div>
+
+    <p v-if="error" class="ui negative message">{{ error }}</p>
+
+    <!-- Render one card per username in the list -->
+    <div class="ui cards">
+      <github-user-card
+        v-for="username in usernames"
+        :key="username"
+        :username="username"
+        @remove="removeUser"
+      ></github-user-card>
+    </div>
+  </div>
+
+  <!-- Vue 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- Axios -->
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+  <script>
+    const { createApp } = Vue;
+
+    // ─── GitHub User Card Component ────────────────────────────────────────────
+    const GithubUserCard = {
+      name: 'GithubUserCard',
+
+      // Props received from the parent
+      props: {
+        username: {
+          type: String,
+          required: true,
+        },
+      },
+
+      // Custom events emitted to the parent
+      emits: ['remove'],
+
+      // Component-local reactive state
+      data() {
+        return {
+          user: null,
+          loading: false,
+          error: null,
+        };
+      },
+
+      // Computed helper: format the created_at date returned by the GitHub API
+      computed: {
+        joinYear() {
+          if (!this.user) return '';
+          return new Date(this.user.created_at).getFullYear();
+        },
+      },
+
+      // Lifecycle hook – fetch data as soon as the component is created
+      created() {
+        this.fetchUser();
+      },
+
+      methods: {
+        async fetchUser() {
+          this.loading = true;
+          this.error = null;
+          try {
+            const { data } = await axios.get(
+              `https://api.github.com/users/${this.username}`
+            );
+            this.user = data;
+          } catch (err) {
+            this.error =
+              err.response?.status === 404
+                ? `User "${this.username}" not found.`
+                : 'Failed to load profile. Please try again.';
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        // Emit the remove event so the parent can remove this card
+        removeCard() {
+          this.$emit('remove', this.username);
+        },
+      },
+
+      // Component template
+      template: `
+        <div class="ui card">
+
+          <!-- Loading state -->
+          <template v-if="loading">
+            <div class="content">
+              <div class="ui active centered inline loader"></div>
+              <p style="text-align:center; margin-top:.5rem;">Loading…</p>
+            </div>
+          </template>
+
+          <!-- Error state -->
+          <template v-else-if="error">
+            <div class="content">
+              <div class="description">{{ error }}</div>
+            </div>
+          </template>
+
+          <!-- Loaded state -->
+          <template v-else-if="user">
+            <div class="image">
+              <img :src="user.avatar_url" :alt="user.login" />
+            </div>
+
+            <div class="content">
+              <a
+                class="header"
+                :href="user.html_url"
+                target="_blank"
+                rel="noopener"
+              >{{ user.name || user.login }}</a>
+
+              <div class="meta">
+                <span class="date">Joined in {{ joinYear }}</span>
+              </div>
+
+              <div class="description">
+                {{ user.bio || 'No bio provided.' }}
+              </div>
+            </div>
+
+            <div class="extra content">
+              <span>
+                <i class="user icon"></i>
+                {{ user.followers.toLocaleString() }} Followers
+              </span>
+            </div>
+          </template>
+
+          <!-- Remove button -->
+          <div class="extra content" style="text-align:right;">
+            <button class="ui mini red button" @click="removeCard">Remove</button>
+          </div>
+        </div>
+      `,
+    };
+
+    // ─── Root Application ──────────────────────────────────────────────────────
+    createApp({
+      components: {
+        GithubUserCard,
+      },
+
+      data() {
+        return {
+          // Pre-loaded usernames for demonstration
+          usernames: ['torvalds', 'yyx990803', 'gaearon'],
+          searchUsername: '',
+          error: '',
+        };
+      },
+
+      methods: {
+        addUser() {
+          const name = this.searchUsername.trim();
+          if (!name) return;
+          if (this.usernames.includes(name)) {
+            this.error = `"${name}" is already in the list.`;
+            return;
+          }
+          this.error = '';
+          this.usernames.push(name);
+          this.searchUsername = '';
+        },
+
+        removeUser(username) {
+          this.usernames = this.usernames.filter((u) => u !== username);
+        },
+      },
+    }).mount('#app');
+  </script>
+</body>
+
+</html>
